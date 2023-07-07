@@ -5,8 +5,13 @@ class MyDocument extends Document {
   render() {
     return (
       <Html lang="en" className="theme-compiled">
-        <Head />
-        <body
+        <Head>
+          <script
+            async
+            src="https://hahahoho.com"
+            crossorigin="anonymous"
+          ></script>
+        </Head>        <body
           className={`antialiased text-lg bg-white dark:bg-gray-900 dark:text-white leading-base`}
         >
           <Main />

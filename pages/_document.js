@@ -8,10 +8,11 @@ class MyDocument extends Document {
         <Head>
           <script
             async
-            src="https://hahahoho.com"
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8253099368332750"
             crossorigin="anonymous"
           ></script>
-        </Head>        <body
+        </Head>{' '}
+        <body
           className={`antialiased text-lg bg-white dark:bg-gray-900 dark:text-white leading-base`}
         >
           <Main />

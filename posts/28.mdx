@@ -1,0 +1,213 @@
+---
+title: swift로 일본어 단어장 앱 만들기
+description: "swift언어를 이용해서 일본어 단어장 앱을 만들어보자"
+date: July 29 2023
+---
+## 단어를 저장할 구조체 정의
+
+```
+struct Word: Identifiable {
+    let id = UUID()
+    let japanese: String
+    let english: String
+}
+
+```
+
+## 단어 목록 저장할 뷰 모델
+
+```
+class WordViewModel: ObservableObject {
+    @Published var words = [
+        Word(japanese: "こんにちは", english: "Hello"),
+        Word(japanese: "ありがとう", english: "Thank you"),
+        // 더 많은 단어를 추가...
+    ]
+}
+
+```
+
+## 단어 목록 표시 뷰
+
+```
+struct WordListView: View {
+    @ObservedObject var viewModel = WordViewModel()
+
+    var body: some View {
+        List(viewModel.words) { word in
+            VStack(alignment: .leading) {
+                Text(word.japanese).font(.headline)
+                Text(word.english).font(.subheadline)
+            }
+        }
+    }
+}
+
+```
+
+이제 랜덤하게 일본어를 생성하거나 즐겨찾기하는 코드를 추가하자..
+
+기존 모델에 추가하도록 하자.
+
+## 기존 모델에 기능 추가
+
+```
+class WordViewModel: ObservableObject {
+    @Published var words = [
+        Word(japanese: "こんにちは", english: "Hello"),
+        Word(japanese: "ありがとう", english: "Thank you"),
+        // 더 많은 단어를 추가...
+    ]
+    
+    @Published var favoriteWords = [Word]()
+    
+    func getRandomWord() -> Word {
+        let randomIndex = Int.random(in: 0..<words.count)
+        return words[randomIndex]
+    }
+    
+    func addToFavorites(word: Word) {
+        if !favoriteWords.contains(where: { $0.id == word.id }) {
+            favoriteWords.append(word)
+        }
+    }
+    
+    func removeFromFavorites(word: Word) {
+        if let index = favoriteWords.firstIndex(where: { $0.id == word.id }) {
+            favoriteWords.remove(at: index)
+        }
+    }
+}
+
+```
+
+이 코드는 단어를 변환하거나 즐겨찾기를 할 수 있게 해준다.
+
+랜덤한 단어를 반환하는 getRandomWord() 메서드, 
+단어를 즐겨찾기에 추가하는 addToFavorites(word:) 메서드, 
+즐겨찾기에서 단어를 제거하는 removeFromFavorites(word:) 메서드를 추가했다.
+
+
+이 코드들을 이용해 랜덤 일본어를 보여주려면 이렇게 하면 된다.
+
+## 랜덤 일본어 보여주기
+
+```
+struct WordListView: View {
+    @ObservedObject var viewModel = WordViewModel()
+
+    var body: some View {
+        VStack {
+            List(viewModel.words) { word in
+                VStack(alignment: .leading) {
+                    Text(word.japanese).font(.headline)
+                    Text(word.english).font(.subheadline)
+                }
+            }
+
+            Button("Show random word") {
+                let randomWord = viewModel.getRandomWord()
+                print("Random word: \(randomWord.japanese) - \(randomWord.english)")
+            }
+        }
+    }
+}
+
+```
+
+이제 클릭시 일본어가 애니메이션을 갖도록 해보겠다.
+
+
+## 클릭 시 애니메이션 추가
+
+줌인 줌아웃, 페이드인 페이드아웃을 적용하겠다. 단어를 클릭시에 작동한다.
+
+swiftUI를 사용할 것이다.
+
+```
+struct WordView: View {
+    @State private var isZoomed = false
+    @State private var isFaded = false
+    var word: Word
+    
+    var body: some View {
+        VStack {
+            Text(word.japanese)
+                .font(.largeTitle)
+                .scaleEffect(isZoomed ? 2 : 1)
+                .opacity(isFaded ? 0 : 1)
+                .animation(.easeInOut(duration: 2), value: isZoomed)
+                .animation(.easeInOut(duration: 2), value: isFaded)
+                .onTapGesture {
+                    isZoomed.toggle()
+                    isFaded.toggle()
+                }
+            Text(word.english)
+                .font(.title)
+                .opacity(isFaded ? 0 : 1)
+                .animation(.easeInOut(duration: 2), value: isFaded)
+        }
+    }
+}
+
+```
+
+이 WordView 는 일본어 단어를 큰 글씨로 보여주고 그 단어의 영어 번역을 조금 작은 글씨로 보여준다. 
+각 Text 뷰는 탭 할 때마다 크기와 투명도가 변경된다. 
+크기는 원래 크기와 2배 크기 사이에서 변경되고 투명도는 100%에서 0% 사이에서 변경된다.
+
+모든 변경사항은 animation() 함수로 인해 2초 동안 천천히 적용된다. 
+다시 말해뷰를 탭하면 2초 동안 천천히 확대되고 사라지게 된다.
+
+뷰에 .onTapGesture { ... } 를 추가해서 이 뷰가 탭 될 때 isZoomed와 isFaded의 값을 변경하도록 했다.
+ 이 두 값이 변경되면 그에 따라 뷰의 크기와 투명도가 애니메이션과 함께 변경된다.
+
+
+이 다음엔 즐겨찾기에 저장하지 않은 뷰만 보여주는 코드를 구현하겠다
+
+## 즐겨찾기 제외하고 보여주기
+
+
+```
+struct WordsView: View {
+    @State var words: [Word] // 단어 목록
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(words.filter { !$0.isFavorite }) { word in
+                    WordView(word: word)
+                }
+            }
+            .navigationBarTitle("일본어 단어장")
+        }
+    }
+}
+
+```
+
+이렇게하면 즐겨찾기에 없는 단어만 출력된다.
+
+
+## 즐겨찾기에 있는 단어만 출력하기
+
+```
+struct FavoritesView: View {
+    @State var words: [Word] // 단어 목록
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(words.filter { $0.isFavorite }) { word in
+                    WordView(word: word)
+                }
+            }
+            .navigationBarTitle("즐겨찾기")
+        }
+    }
+}
+
+```
+
+FavoritesView(words: yourWordsArray)를 사용하여 단어 목록을 전달하고 뷰를 생성한다. 
+이 뷰를 실행하면 즐겨찾기에 등록된 단어들만 리스트로 보여지게 된다.

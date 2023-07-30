@@ -159,7 +159,7 @@ struct WordView: View {
 모든 변경사항은 animation() 함수로 인해 2초 동안 천천히 적용된다. 
 다시 말해뷰를 탭하면 2초 동안 천천히 확대되고 사라지게 된다.
 
-뷰에 .onTapGesture { ... } 를 추가해서 이 뷰가 탭 될 때 isZoomed와 isFaded의 값을 변경하도록 했다.
+뷰에 .onTapGesture 를 추가해서 이 뷰가 탭 될 때 isZoomed와 isFaded의 값을 변경하도록 했다.
  이 두 값이 변경되면 그에 따라 뷰의 크기와 투명도가 애니메이션과 함께 변경된다.
 
 

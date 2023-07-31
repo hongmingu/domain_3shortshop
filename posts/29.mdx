@@ -1,0 +1,228 @@
+---
+title: typescript로 스페인어 단어장 앱 만들기
+description: "typescript 언어를 이용해서 스페인어 단어장 앱을 만들어보자"
+date: July 31 2023
+---
+
+TypeScript를 사용하여 단어장 앱을 만들기 위해 React를 함께 사용하기로 하자. 
+
+이 예제에서는 단순한 상태 관리를 위해 useState와 useEffect를 사용할 건데 이것은 리액트에서 제공하는 훅으로 
+
+상태 관리를 도와주니 편리하다. 사용하기로 하자.
+
+## 간단한 스페인어 단어장 앱 예제
+```
+import React, { useState, useEffect } from 'react';
+
+interface Word {
+  english: string;
+  spanish: string;
+}
+
+const initialWords: Word[] = [
+  { english: 'Hello', spanish: 'Hola' },
+  { english: 'Goodbye', spanish: 'Adiós' },
+  // 기타 단어들
+];
+
+const WordCard: React.FC<{ word: Word }> = ({ word }) => {
+  return (
+    <div>
+      <h2>{word.english}</h2>
+      <p>{word.spanish}</p>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  const [words, setWords] = useState<Word[]>([]);
+
+  useEffect(() => {
+    setWords(initialWords);
+  }, []);
+
+  return (
+    <div>
+      {words.map((word, index) => (
+        <WordCard key={index} word={word} />
+      ))}
+    </div>
+  );
+};
+
+export default App;
+
+```
+
+이 코드는 간단한 단어장 앱의 예제이다. 
+각 단어는 영어와 스페인어로 이루어져 있다. 
+App 컴포넌트에서는 초기 단어들의 상태를 설정하고
+ 단어들을 순회하며 WordCard 컴포넌트를 렌더링한다.
+  WordCard 컴포넌트는 각 단어를 받아서 화면에 표시한다.
+
+
+약간 밋밋하니 폰트를 변경해보자
+
+## 스페인어 단어 폰트 변경 예제
+
+react-google-font-loader라는 패키지를 사용할 것이다. 
+
+이 패키지를 설치하려면 npm install react-google-font-loader 또는 yarn add react-google-font-loader 를 쓰도록 하자.
+
+```
+import React, { useState, useEffect } from 'react';
+import GoogleFontLoader from 'react-google-font-loader';
+
+interface Word {
+  english: string;
+  spanish: string;
+}
+
+// 가상의 Google Fonts 데이터
+const fonts = ['Roboto', 'Open Sans', 'Lato', 'Slabo 27px', 'Oswald'];
+
+const randomFont = () => {
+  return fonts[Math.floor(Math.random() * fonts.length)];
+};
+
+const WordCard: React.FC<{ word: Word }> = ({ word }) => {
+  const [font, setFont] = useState<string>('');
+
+  useEffect(() => {
+    setFont(randomFont());
+  }, []);
+
+  return (
+    <div>
+      <GoogleFontLoader
+        fonts={[
+          {
+            font: font,
+            weights: [400, '400i'],
+          },
+        ]}
+        subsets={['cyrillic-ext', 'greek']}
+      />
+      <h2 style={{ fontFamily: font }}>{word.english}</h2>
+      <p style={{ fontFamily: font }}>{word.spanish}</p>
+    </div>
+  );
+};
+
+// App 컴포넌트는 이전과 동일
+
+```
+
+위 코드에서 randomFont 함수는 랜덤하게 폰트를 선택하는 함수이다 
+WordCard 컴포넌트는 각 단어를 렌더링하고 GoogleFontLoader를 사용하여 랜덤하게 선택된 폰트를 불러오게 된다.
+
+
+## 단어 클릭시 효과음 재생
+
+단어 클릭시 효과음을 재생해서 학습에 생동성을 부여하자.
+
+Audio 객체를 활용하면 된다.
+
+```
+import React, { useState, useEffect } from 'react';
+
+interface Word {
+  english: string;
+  spanish: string;
+}
+
+const WordCard: React.FC<{ word: Word }> = ({ word }) => {
+  const playSound = () => {
+    const audio = new Audio('/path/to/sound/file.mp3');  // 효과음 파일 경로
+    audio.play();
+  };
+
+  return (
+    <div>
+      <h2 onClick={playSound}>{word.english}</h2>
+      <p onClick={playSound}>{word.spanish}</p>
+    </div>
+  );
+};
+
+// App 컴포넌트는 이전과 동일
+
+```
+
+이렇게 하면 스페인어 단어 클릭시 효과음이 재생되게 된다.
+
+지금까지 만든 코드에 css를 추가해서 조금 더 예쁘게 해보자.
+
+styled-components 라이브러리를 쓸 거다
+
+## styled-components 적용한 코드
+
+```
+import React from 'react';
+import styled from 'styled-components';
+
+interface Word {
+  english: string;
+  spanish: string;
+}
+
+const Card = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 1em;
+  padding: 1em;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.3s ease-in-out;
+
+  &:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+`;
+
+const WordText = styled.h2`
+  margin: 0.5em 0;
+  font-size: 1.5em;
+  text-transform: uppercase;
+  color: #333;
+  cursor: pointer;
+
+  &:hover {
+    color: #007BFF;
+  }
+`;
+
+const TranslationText = styled.p`
+  margin: 0;
+  font-size: 1.2em;
+  color: #666;
+  cursor: pointer;
+
+  &:hover {
+    color: #007BFF;
+  }
+`;
+
+const WordCard: React.FC<{ word: Word }> = ({ word }) => {
+  const playSound = () => {
+    const audio = new Audio('/path/to/sound/file.mp3');
+    audio.play();
+  };
+
+  return (
+    <Card>
+      <WordText onClick={playSound}>{word.english}</WordText>
+      <TranslationText onClick={playSound}>{word.spanish}</TranslationText>
+    </Card>
+  );
+};
+
+// App 컴포넌트는 이전과 동일
+
+
+```
+
+이제 그럴듯한 스페인어 단어장 앱이 작동할 것이다. 그 외 데이터베이스는 다음에 추가하겠다.

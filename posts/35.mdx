@@ -1,0 +1,201 @@
+---
+title: Swift 음성 데이터 머신러닝 기초 4
+description: "Swift 로 음성 데이터 머신러닝 기본 프로그램 만들기 4 스마트 홈 제어"
+date: July 31 2023
+---
+지난 게시에 이어 이번엔 스마트 홈 제어 앱을 만들어보자
+
+음성 명령을 통해 스마트 홈 장치를 제어하는 앱을 만들 것이다. 
+예를들면 "조명을 켜십시오", "에어컨을 23도로 설정하십시오" 등의 명령을 인식하여 해당 장치를 제어하는 것이 가능하다.
+
+
+### 기본 설명
+스마트 홈 제어에 대한 구현은 실제 하드웨어와 그에 대한 제어 로직, 네트워크 통신 등이 포함된다. 
+이번엔 간단하게 사용자의 음성 명령을 인식하고 그에 따라 간단한 제어 로직을 실행하는 정도만 구현해보자. 
+이 예제는 실제 하드웨어를 제어하지는 않지만 음성 명령을 통해 앱 내부의 상태를 변경하는 방법을 보여준다.
+
+
+#### 예제 코드
+
+
+```
+import SwiftUI
+import Combine
+import Speech
+
+struct ContentView: View {
+    @State private var isRecording = false
+    @State private var recognizedText: String = ""
+    @State private var lightOn: Bool = false
+    @State private var acTemperature: Int = 24
+    @State private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    @State private var recognitionTask: SFSpeechRecognitionTask?
+    let audioEngine = AVAudioEngine()
+    let speechRecognizer = SFSpeechRecognizer()
+    
+    var body: some View {
+        VStack {
+            Text("Light is \(lightOn ? "On" : "Off")")
+            Text("AC is set to \(acTemperature) degrees")
+            Button(action: {
+                self.isRecording.toggle()
+                if self.isRecording {
+                    do {
+                        try self.startRecording()
+                    } catch {
+                        print("Failed to start recording: \(error)")
+                    }
+                } else {
+                    self.stopRecording()
+                }
+            }) {
+                Text("\(isRecording ? "Stop" : "Start") recording")
+            }
+        }
+    }
+    
+    func startRecording() throws {
+        recognizedText = ""
+        
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        guard let recognitionRequest = recognitionRequest else { return }
+        
+        let inputNode = audioEngine.inputNode
+        recognitionRequest.shouldReportPartialResults = true
+        
+        recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest, resultHandler: { (result, error) in
+            if let result = result {
+                self.recognizedText = result.bestTranscription.formattedString
+                self.processCommand(command: self.recognizedText)
+            } else if let error = error {
+                print("Recognition failed: \(error)")
+            }
+        })
+        
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { (buffer, _) in
+            recognitionRequest.append(buffer)
+        }
+        
+        audioEngine.prepare()
+        try audioEngine.start()
+    }
+    
+    func stopRecording() {
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        
+        recognitionRequest = nil
+        recognitionTask = nil
+    }
+    
+    func processCommand(command: String) {
+        if command.contains("light on") {
+            lightOn = true
+        } else if command.contains("light off") {
+            lightOn = false
+        } else if let temperature = Int(command.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()) {
+            acTemperature = temperature
+        }
+    }
+}
+
+```
+
+이 예제에서 processCommand 함수는 인식된 텍스트 명령을 분석하고 그에 따라 내부 상태를 변경한다.
+ "light on"이나 "light off"가 포함되어 있으면 불의 상태를 변경하고 숫자가 포함되어 있으면 그 숫자를 에어컨의 온도로 설정한다. 
+ 이 예제를 실제 하드웨어 제어로 확장하려면 이 함수에서 네트워크 요청을 보내거나 하드웨어 제어 API를 호출하면 된다.
+
+### 네트워크 통신 추가하기
+
+HTTP 요청을 통해 스마트홈 장치를 제어하는 API가 있다고 가정한다. 
+그러면 아래와 같이 processCommand 함수를 변경하여 실제 네트워크 요청을 보낼 수 있다. 
+URLSession을 사용하여 HTTP 요청을 보낼 것이다.
+
+```
+import Foundation
+
+func processCommand(command: String) {
+    let urlSession = URLSession.shared
+
+    if command.contains("light on") {
+        let url = URL(string: "http://my-home-automation-api.example.com/light/on")!
+        urlSession.dataTask(with: url).resume()
+    } else if command.contains("light off") {
+        let url = URL(string: "http://my-home-automation-api.example.com/light/off")!
+        urlSession.dataTask(with: url).resume()
+    } else if let temperature = Int(command.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()) {
+        let url = URL(string: "http://my-home-automation-api.example.com/ac/set/\(temperature)")!
+        urlSession.dataTask(with: url).resume()
+    }
+}
+
+```
+
+### 오류 처리 예제
+
+통신시 발생할 수 있는 오류를 처리하는 예제이다.
+
+```
+import Foundation
+
+func processCommand(command: String) {
+    let urlSession = URLSession.shared
+
+    if command.contains("light on") {
+        var request = URLRequest(url: URL(string: "http://my-home-automation-api.example.com/light/on")!)
+        request.httpMethod = "POST"
+        urlSession.dataTask(with: request) { (data, response, error) in
+            if let error = error {
+                print("Failed to turn on the light: \(error)")
+            } else {
+                print("Successfully turned on the light")
+            }
+        }.resume()
+    } else if command.contains("light off") {
+        var request = URLRequest(url: URL(string: "http://my-home-automation-api.example.com/light/off")!)
+        request.httpMethod = "POST"
+        urlSession.dataTask(with: request) { (data, response, error) in
+            if let error = error {
+                print("Failed to turn off the light: \(error)")
+            } else {
+                print("Successfully turned off the light")
+            }
+        }.resume()
+    } else if let temperature = Int(command.components(separatedBy: CharacterSet.decimalDigits.inverted).joined()) {
+        var request = URLRequest(url: URL(string: "http://my-home-automation-api.example.com/ac/set/\(temperature)")!)
+        request.httpMethod = "POST"
+        urlSession.dataTask(with: request) { (data, response, error) in
+            if let error = error {
+                print("Failed to set AC temperature: \(error)")
+            } else {
+                print("Successfully set AC temperature")
+            }
+        }.resume()
+    }
+}
+
+```
+
+이 예제에서는 각 요청이 완료되었을 때 성공 메시지를 출력하거나 오류가 발생하면 오류 메시지를 출력하도록 했다. 
+
+
+### 인증
+
+
+인증에 대한 부분은 인증 방식에 따라 다르게 처리해야 한다. 
+예를 들어, Bearer 토큰을 사용하는 경우 다음과 같이 URLRequest의 addValue(_:forHTTPHeaderField:) 메서드를 사용하여 인증 헤더를 추가할 수 있다고
+
+```
+request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+```
+
+자세한건 일반적인 oauth를 참고하면 된다.

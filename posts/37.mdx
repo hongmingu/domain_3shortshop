@@ -1,0 +1,216 @@
+---
+title: Flutter 모션 인식 기초 1
+description: "Flutter 로 모션 인식 프로그램 만들기 1"
+date: August 1 2023
+---
+플러터는 주로 모바일 앱 개발을 위한 프레임워크로 기본적으로 모션 인식 기능을 내장하고 있지 않다. 
+그러나 외부 패키지를 사용하여 모션 센서에 접근하고 이를 활용해 모션 인식 기능을 구현할 수 있다.
+
+모션 센서에 접근하려면 sensors 패키지를 사용하자.
+ 이 패키지는 가속도계 및 자이로스코프 센서를 이용하여 장치의 모션 데이터에 접근할 수 있게 한다.
+
+### 기본 예제
+
+```
+import 'package:flutter/material.dart';
+import 'package:sensors/sensors.dart';
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Motion Detection',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: MyHomePage(title: 'Motion Detection Home Page'),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  MyHomePage({Key? key, this.title}) : super(key: key);
+
+  final String? title;
+
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  String _motionData = "";
+
+  @override
+  void initState() {
+    super.initState();
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      setState(() {
+        _motionData = event.toString();
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title!),
+      ),
+      body: Center(
+        child: Text('Motion Data: $_motionData'),
+      ),
+    );
+  }
+}
+
+```
+
+이 예제에서는 accelerometerEvents.listen() 함수를 사용하여 가속도계 이벤트를 구독하고 장치의 모션 데이터를 _motionData 변수에 저장한다. 
+그리고 이 데이터를 화면에 표시한다.
+더 복잡한 모션 인식 기능을 구현하려면 해당 모션을 분석하고 인식하는 로직을 추가로 구현해야 한다.
+
+
+### 스윙 감지
+
+사용자가 스마트폰을 흔드는 모션을 감지하는 기능을 추가하자.
+
+```
+import 'package:flutter/material.dart';
+import 'package:sensors/sensors.dart';
+import 'package:tflite_flutter/tflite_flutter.dart';
+
+class SwingDetector extends StatefulWidget {
+  @override
+  _SwingDetectorState createState() => _SwingDetectorState();
+}
+
+class _SwingDetectorState extends State<SwingDetector> {
+  String _motionData = "";
+  String _prediction = "";
+  Interpreter? _interpreter;
+
+  @override
+  void initState() {
+    super.initState();
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      setState(() {
+        _motionData = event.toString();
+      });
+
+      _predictMotion(event);
+    });
+
+    _loadModel();
+  }
+
+  Future<void> _loadModel() async {
+    _interpreter = await Interpreter.fromAsset('swing_model.tflite');
+  }
+
+  void _predictMotion(AccelerometerEvent event) {
+    if (_interpreter == null) return;
+
+    var input = [event.x, event.y, event.z];
+    var output = [0.0];
+    _interpreter!.run(input, output);
+
+    setState(() {
+      _prediction = output[0] > 0.5 ? 'Swinging' : 'Not swinging';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Swing Detector'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Motion Data: $_motionData'),
+            Text('Prediction: $_prediction'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+```
+
+### 걷는 모션 감지
+
+걷는 모션을 감지하는 방법이다.
+
+```
+import 'package:flutter/material.dart';
+import 'package:sensors/sensors.dart';
+import 'package:tflite_flutter/tflite_flutter.dart';
+
+class WalkingDetector extends StatefulWidget {
+  @override
+  _WalkingDetectorState createState() => _WalkingDetectorState();
+}
+
+class _WalkingDetectorState extends State<WalkingDetector> {
+  String _motionData = "";
+  String _prediction = "";
+  Interpreter? _interpreter;
+
+  @override
+  void initState() {
+    super.initState();
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      setState(() {
+        _motionData = event.toString();
+      });
+
+      _predictMotion(event);
+    });
+
+    _loadModel();
+  }
+
+  Future<void> _loadModel() async {
+    _interpreter = await Interpreter.fromAsset('walking_model.tflite');
+  }
+
+  void _predictMotion(AccelerometerEvent event) {
+    if (_interpreter == null) return;
+
+    var input = [event.x, event.y, event.z];
+    var output = [0.0];
+    _interpreter!.run(input, output);
+
+    setState(() {
+      _prediction = output[0] > 0.5 ? 'Walking' : 'Not walking';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Walking Detector'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Motion Data: $_motionData'),
+            Text('Prediction: $_prediction'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+```
+
+위 코드에서 swing_model.tflite 및 walking_model.tflite는 미리 학습된 TensorFlow Lite 모델을 의미한다. 
+이 모델은 가속도계 데이터를 입력으로 받아 해당 모션이 어떤 동작인지를 예측한다. 여기서는 스윙이나 걷기이다.

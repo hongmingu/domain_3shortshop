@@ -1,0 +1,222 @@
+---
+title: Swift 음성 데이터 머신러닝 기초 5
+description: "Swift 로 음성 데이터 머신러닝 기본 프로그램 만들기 5 앱 내 음성 검색"
+date: July 31 2023
+---
+지난 게시에 이어 이번엔 앱에서 음성 검색을 할 수 있게 만들어보자
+사용자가 음성으로 검색어를 말하면 이를 텍스트로 변환하고 검색 엔진에 전달하여 결과를 표시할 것이다. 
+
+이를 통해 키보드를 사용하지 않고도 검색을 할 수 있게 되는 게 목표이다.
+
+### 간단 설명
+
+사용자의 음성 명령을 텍스트로 변환하고 "재생", "정지", "다음", "이전" 이라는 명령어를 인식하여 음악 플레이어의 기능을 제어한다.
+이 예제는 SwiftUI를 사용하여 구현했다. 
+"Start" 버튼을 누르면 사용자의 음성을 기록하기 시작하며
+
+ "Stop" 버튼을 누르면 기록을 중지하고 음성을 텍스트로 변환한다.
+  변환된 텍스트는 TextField의 텍스트로 설정되며 이 텍스트를 사용하여 데이터를 필터링하고 결과를 표시한다.
+```
+import SwiftUI
+import Speech
+
+struct ContentView: View {
+    @State private var searchText = "" // 검색어 저장 변수
+    @State private var results: [String] = [] // 검색 결과 저장 변수
+    @State private var isRecording = false // 음성 녹음 상태 저장 변수
+    private let data = ["Apple", "Banana", "Cherry", "Dates", "Elderberry", "Fig", "Grape"] // 검색 대상 데이터
+
+    var body: some View {
+        VStack {
+            HStack {
+                TextField("Search", text: $searchText, onCommit: {
+                    // 사용자가 검색어 입력을 완료하면 검색을 실행
+                    self.results = self.data.filter { $0.contains(self.searchText) }
+                })
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                Button(action: {
+                    // 버튼 클릭 시 녹음 상태 토글
+                    self.isRecording.toggle()
+                    if self.isRecording {
+                        self.startRecording() // 녹음 시작
+                    } else {
+                        self.stopRecording() // 녹음 중지
+                    }
+                }) {
+                    Text(isRecording ? "Stop" : "Start") // 버튼 텍스트
+                }
+            }
+            
+            List(results, id: \.self) { result in
+                Text(result) // 검색 결과 출력
+            }
+        }
+        .padding()
+    }
+
+    private func startRecording() {
+        // 사용자의 음성 녹음 시작 구현
+    }
+
+    private func stopRecording() {
+        // 녹음 중지 및 음성을 텍스트로 변환 구현
+        // 변환 후에는 searchText 상태 변수에 변환된 텍스트 업데이트
+    }
+}
+
+```
+
+#### startRecording() 함수와 stopRecording() 함수 구현
+
+startRecording()와 stopRecording() 함수를 SFSpeechRecognizer를 사용하여 간단하게 만들자.
+
+이 예제에서는 사용자의 음성을 실시간으로 텍스트로 변환하며 변환된 텍스트를 searchText 변수에 업데이트한다.
+이 함수들을 사용하려면 앱의 Info.plist 파일에 NSSpeechRecognitionUsageDescription 키를 추가하고 사용자로부터 음성 인식 권한을 요청해야 한다. 
+또한 음성 인식 기능은 사용자의 기기가 인터넷에 연결되어 있어야 사용할 수 있을 것이다.
+
+```
+import SwiftUI
+import Speech
+
+struct ContentView: View {
+    @State private var searchText = ""
+    @State private var results: [String] = []
+    @State private var isRecording = false
+    private let data = ["Apple", "Banana", "Cherry", "Dates", "Elderberry", "Fig", "Grape"]
+    private let audioEngine = AVAudioEngine() // 음성 녹음 엔진
+    private let speechRecognizer = SFSpeechRecognizer()
+    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var recognitionTask: SFSpeechRecognitionTask?
+
+    var body: some View {
+        // ... // 이전의 ContentView 구현
+    }
+
+    private func startRecording() {
+        // 1. 오디오 녹음 세션 설정
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        } catch {
+            print("Failed to set up audio session: \(error)")
+            return
+        }
+
+        // 2. 음성 인식 요청 설정
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        guard let recognitionRequest = recognitionRequest else {
+            print("Failed to create recognition request")
+            return
+        }
+
+        // 3. 오디오 입력 설정
+        let inputNode = audioEngine.inputNode
+        recognitionRequest.shouldReportPartialResults = true // 인식 결과를 실시간으로 리포트
+
+        // 4. 음성 인식 태스크 시작
+        recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
+            if let result = result {
+                // 인식된 텍스트를 searchText에 업데이트
+                self.searchText = result.bestTranscription.formattedString
+                self.results = self.data.filter { $0.contains(self.searchText) }
+            } else if let error = error {
+                print("Failed to recognize speech: \(error)")
+            }
+        }
+
+        // 5. 오디오 녹음 시작
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+            self.recognitionRequest?.append(buffer)
+        }
+        audioEngine.prepare()
+        do {
+            try audioEngine.start()
+        } catch {
+            print("Failed to start audio engine: \(error)")
+            return
+        }
+    }
+
+    private func stopRecording() {
+        // 1. 오디오 녹음 중지
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+
+        // 2. 음성 인식 요청 및 태스크 취소
+        recognitionRequest?.endAudio()
+        recognitionRequest = nil
+        recognitionTask?.cancel()
+        recognitionTask = nil
+    }
+}
+
+```
+
+### 에러 처리 및 디자인 개선
+
+에러 처리하는 간단한 예제와 디자인을 개선한 예시이다
+
+음성 인식에 실패했을 때 에러처리로 해결할 것이다.
+
+```
+import SwiftUI
+import Speech
+
+struct ContentView: View {
+    @State private var searchText = ""
+    @State private var results: [String] = []
+    @State private var isRecording = false
+    @State private var errorMessage: String?
+    private let data = ["Apple", "Banana", "Cherry", "Dates", "Elderberry", "Fig", "Grape"]
+    private let audioEngine = AVAudioEngine() // 음성 녹음 엔진
+    private let speechRecognizer = SFSpeechRecognizer()
+    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var recognitionTask: SFSpeechRecognitionTask?
+
+    var body: some View {
+        VStack {
+            // ... // 이전의 ContentView 구현
+            
+            // 음성 인식 에러 메시지
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+                    .foregroundColor(.red)
+            }
+        }
+        .onAppear(perform: checkSpeechRecognitionPermission)
+    }
+
+    // ... // 이전의 startRecording() 및 stopRecording() 구현
+
+    private func checkSpeechRecognitionPermission() {
+        // 음성 인식 권한 확인
+        SFSpeechRecognizer.requestAuthorization { status in
+            switch status {
+            case .authorized:
+                // 권한 허용
+                break
+            default:
+                // 권한 거부 또는 제한
+                self.errorMessage = "음성 인식 권한이 필요합니다."
+            }
+        }
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
+}
+
+```
+
+이 예제에서는 앱이 로드될 때 음성 인식 권한을 확인하고 권한이 없을 경우 에러 메시지를 표시한다. 
+또한 startRecording() 함수와 stopRecording() 함수에서 발생하는 오류를 errorMessage 변수에 저장하여 화면에 표시한다.
+
+음성 인식이 진행 중인지 알려주는 인디케이터는 isRecording 변수를 이용하여 추가했다.
+ 이 변수는 녹음 시작시 true로 설정하고 녹음 중지시 false로 설정하면 된다. 
+이렇게하면 앱이 음성 인식을 진행 중인지 쉽게 알 수 있다.

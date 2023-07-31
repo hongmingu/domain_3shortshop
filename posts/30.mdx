@@ -1,0 +1,216 @@
+---
+title: typescript 머신러닝 기초1
+description: "typescript 로 머신러닝 기본 프로그램 만들기1"
+date: July 31 2023
+---
+머신 러닝 모델을 학습시키고 예측을 수행하는 기본적인 예제로 TensorFlow.js를 써보자.
+이 라이브러리는 웹 브라우저 및 Node.js 환경에서 JavaScript로 머신러닝 모델을 학습하고 실행할 수 있게 해준다.
+
+먼저 필요한 라이브러리를 설치하자. 
+
+#### 라이브러리 설치
+
+```
+npm install @tensorflow/tfjs @types/node
+```
+
+#### 기초적인 단순 선형 회귀 모델 훈련 
+
+```
+// 필요한 라이브러리를 임포트
+import * as tf from '@tensorflow/tfjs';
+
+// 단순 선형 회귀 모델.
+const model = tf.sequential();
+model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+
+// 모델을 컴파일.
+model.compile({ loss: 'meanSquaredError', optimizer: 'sgd' });
+
+// 학습 데이터 세팅.
+const xs = tf.tensor2d([1, 2, 3, 4], [4, 1]);
+const ys = tf.tensor2d([1, 3, 5, 7], [4, 1]);
+
+// 모델을 학습.
+await model.fit(xs, ys, {epochs: 500});
+
+// 모델을 사용해 예측을 수행.
+const output = model.predict(tf.tensor2d([5], [1, 1])) as tf.Tensor;
+
+// 예측 결과를 출력.
+output.print();
+
+```
+
+위 코드는 x = [1, 2, 3, 4] 인데 y = [1, 3, 5, 7] 이라는 학습 데이터를 기반으로 단순 선형 회귀 모델을 훈련한다. 
+모델은 x가 5일 때 y를 예측하고 그 결과를 출력하게 되어 있다.
+
+
+### 컨볼루션 신경망 모델 훈련 (CNN)
+
+
+#### 필요 라이브러리 임포트
+```
+npm install @tensorflow/tfjs @tensorflow/tfjs-node @types/node
+```
+
+이 라이브러리가 있어야 데이터셋을 사용할 수 있다.
+
+#### 컨볼루션 신경망 모델 훈련 코드
+
+```
+
+import * as tf from '@tensorflow/tfjs';
+import * as tfn from '@tensorflow/tfjs-node';
+
+// 미리 정의된 데이터 로딩 함수 (예를 들어, MNIST 데이터 로딩)
+async function loadData() {
+    // 이 함수는 MNIST 데이터를 불러와서 학습 및 테스트 데이터셋으로 반환하는 것을 구현함.
+    // TensorFlow.js에는 내장된 데이터 로딩 기능이 없으므로 실제로 이 함수를 구현하려면
+    // 추가적인 데이터 처리 코드를 여기에 커스터마이징.
+}
+
+// 데이터 로딩
+const {xTrain, yTrain, xTest, yTest} = await loadData();
+
+// CNN 모델 생성
+const model = tf.sequential();
+model.add(tf.layers.conv2d({
+    inputShape: [28, 28, 1],
+    filters: 32,
+    kernelSize: 3,
+    activation: 'relu',
+}));
+model.add(tf.layers.maxPooling2d({poolSize: 2, strides: 2}));
+model.add(tf.layers.conv2d({filters: 64, kernelSize: 3, activation: 'relu'}));
+model.add(tf.layers.maxPooling2d({poolSize: 2, strides: 2}));
+model.add(tf.layers.flatten());
+model.add(tf.layers.dense({units: 128, activation: 'relu'}));
+model.add(tf.layers.dense({units: 10, activation: 'softmax'}));
+
+// 모델 컴파일
+model.compile({
+    optimizer: 'adam',
+    loss: 'categoricalCrossentropy',
+    metrics: ['accuracy'],
+});
+
+// 모델 학습
+await model.fit(xTrain, yTrain, {
+    epochs: 5,
+    validationData: [xTest, yTest],
+    callbacks: tfn.node.tensorBoard('/tmp/fit_logs_1')
+});
+
+// 모델 평가
+const result = await model.evaluate(xTest, yTest);
+console.log(result);
+
+```
+
+이 예제에서는 TensorFlow.js 라이브러리를 사용하여 CNN 모델을 만들고 MNIST 데이터셋을 이용하여 모델을 학습하고 평가한다. 
+실제로 이 코드를 실행하려면 loadData 함수를 완성해야 한다.
+
+
+### LSTM 시퀀스 예측
+
+시간에 따라 변하는 데이터를 추측하려면 LSTM 모델을 사용한다.
+
+우선 임포트하자
+
+```
+npm install @tensorflow/tfjs @types/node
+```
+
+그 다음에 실제로 코드를 작성한다. 코드는 다음과 같은데 
+10 타임스텝 동안의 1차원 값에 대해 LSTM 모델을 생성하고 이를 임의의 데이터로 학습시킨 후 새로운 시퀀스에 대한 예측을 수행한다. 
+
+이 예제에서는 학습 데이터와 예측을 위한 데이터를 임의로 생성하는데 실제 활용 시에는 이 부분을 실제 시퀀스 데이터로 대체해야 한다.
+
+
+```
+import * as tf from '@tensorflow/tfjs';
+
+// 시퀀스를 예측하기 위한 LSTM 모델 생성
+const model = tf.sequential();
+model.add(tf.layers.lstm({
+    units: 100,
+    returnSequences: false,
+    inputShape: [10, 1],  // 10 타임스텝 동안의 1차원 값
+}));
+model.add(tf.layers.dense({units: 1}));
+
+// 모델 컴파일
+model.compile({optimizer: 'adam', loss: 'meanSquaredError'});
+
+// 임의의 학습 데이터 생성
+const xTrain = tf.randomNormal([100, 10, 1]);
+const yTrain = tf.randomNormal([100, 1]);
+
+// 모델 학습
+await model.fit(xTrain, yTrain, {epochs: 50});
+
+// 모델을 사용한 예측
+const xPredict = tf.randomNormal([1, 10, 1]);
+const prediction = model.predict(xPredict) as tf.Tensor;
+
+// 예측 결과 출력
+prediction.print();
+
+```
+
+### 이미지 분류작업 예제 
+
+이미지 분류도 물론 할 수 있다. 
+
+카테고리를 정해놓고 카테고리에 이미지를 매핑하는 코드를 만들어보자.
+ MobileNet 모델을 사용할건데 MobileNet은 효율적이며 빠르기 때문에 웹 브라우저나 모바일 기기 등에 적합하다.
+
+```
+npm install @tensorflow/tfjs @tensorflow-models/mobilenet jpeg-js @types/node
+```
+
+모바일넷 모델을 우선 설치해준다.
+
+```
+import * as tf from '@tensorflow/tfjs';
+import * as mobilenet from '@tensorflow-models/mobilenet';
+import * as jpeg from 'jpeg-js';
+
+import { readFileSync } from 'fs';
+import { Image, loadImage } from 'canvas';
+
+// 이미지 파일을 텐서로 변환하는 함수
+async function imageToTensor(imagePath: string): Promise<tf.Tensor3D> {
+    const data = new Uint8Array(readFileSync(imagePath));
+    const { width, height, data: buffer } = jpeg.decode(data, true);
+
+    const image = await loadImage(imagePath);
+    const canvas = createCanvas(image.width, image.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0, image.width, image.height);
+
+    return tf.browser.fromPixels(canvas).toFloat().expandDims(0);
+}
+
+// MobileNet 모델을 불러오기
+const model = await mobilenet.load();
+
+// 이미지 경로
+const imagePath = 'path-to-your-image.jpg';
+
+// 이미지를 텐서로 변환
+const imgTensor = await imageToTensor(imagePath);
+
+// 이미지를 분류
+const predictions = await model.classify(imgTensor);
+
+console.log('Predictions: ', predictions);
+
+```
+
+이 코드에서는 먼저 MobileNet 모델을 불러온 다음 분류하려는 이미지를 TensorFlow.js 텐서로 변환한다. 
+그런 다음, model.classify 메서드를 사용하여 이미지를 분류하고 결과를 콘솔에 출력한다.
+
+imageToTensor 함수는 이미지 파일의 경로를 받아 해당 이미지를 3D 텐서로 변환하는 역할이다.
+이 함수는 jpeg-js 라이브러리를 사용하여 JPEG 이미지를 디코딩하고 TensorFlow.js를 사용하여 픽셀 데이터를 텐서로 변환한다.

@@ -1,0 +1,249 @@
+---
+title: Flutter 모션 인식 기초 2
+description: "Flutter 로 모션 인식 프로그램 만들기 2"
+date: August 1 2023
+---
+지난 시간에 이어 이번엔 좀 더 다양한 모션을 인식하는 방법을 정리한다.
+
+스마트폰을 사용하여 사용자의 움직임을 분석하고 운동량을 계산하는 앱을 만들어보자.
+
+이 앱에서는 가속도계와 자이로스코프의 데이터를 모두 사용하여 사용자의 움직임을 분석하고 운동량을 계산하기 위해 움직임의 크기와 지속 시간을 모두 측정한다.
+
+### 기본 예제
+
+
+```
+import 'package:flutter/material.dart';
+import 'package:sensors/sensors.dart';
+
+class MotionActivityMonitor extends StatefulWidget {
+  @override
+  _MotionActivityMonitorState createState() => _MotionActivityMonitorState();
+}
+
+class _MotionActivityMonitorState extends State<MotionActivityMonitor> {
+  String _accelerometerData = "";
+  String _gyroscopeData = "";
+  double _activityLevel = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      setState(() {
+        _accelerometerData = event.toString();
+        _activityLevel += _calculateActivityLevel(event);
+      });
+    });
+    gyroscopeEvents.listen((GyroscopeEvent event) {
+      setState(() {
+        _gyroscopeData = event.toString();
+        _activityLevel += _calculateActivityLevel(event);
+      });
+    });
+  }
+
+  double _calculateActivityLevel(event) {
+    // The following is a very simple estimation of activity level.
+    // In a real-world application, a more sophisticated algorithm should be used.
+    double magnitude = event.x * event.x + event.y * event.y + event.z * event.z;
+    double activityLevel = magnitude / 1000.0;
+    return activityLevel;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Motion Activity Monitor'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Accelerometer Data: $_accelerometerData'),
+            Text('Gyroscope Data: $_gyroscopeData'),
+            Text('Estimated Activity Level: $_activityLevel'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+```
+
+위의 코드에서 _calculateActivityLevel(event) 함수는 각 센서 이벤트의 크기를 계산하여 활동 수준을 추정한다.
+ 실제 앱에서는 더 복잡한 알고리즘을 사용하여 정확한 활동 수준을 계산해야 할것이다.
+
+또한 accelerometerEvents와 gyroscopeEvents는 각각 가속도계와 자이로스코프의 데이터를 스트리밍한다. 
+이들 이벤트를 듣고 화면에 표시하며 활동 수준도 갱신하게된다.
+
+이 앱을 실행하면 사용자가 스마트폰을 움직일 때마다 활동 수준이 증가하는 것을 볼 수 있을 것이다. 
+사용자가 움직이지 않으면 활동 수준은 변하지 않게 되어있다.
+
+
+
+다음 예제는 
+
+스마트폰의 자이로스코프 데이터를 사용하여 사용자가 스마트폰을 특정 방향으로 흔들었을 때 특정 기능을 실행하는 앱을 만들어보자. 
+예를 들어 사용자가 스마트폰을 좌우로 흔들면 다음 노래를 재생하고 상하로 흔들면 이전 노래를 재생하는 음악 앱이다.
+
+### 모션에 따른 음악앱
+
+
+```
+import 'package:flutter/material.dart';
+import 'package:sensors/sensors.dart';
+
+class ShakeDetector extends StatefulWidget {
+  @override
+  _ShakeDetectorState createState() => _ShakeDetectorState();
+}
+
+class _ShakeDetectorState extends State<ShakeDetector> {
+  String _lastShakeDirection = "None";
+
+  @override
+  void initState() {
+    super.initState();
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      String shakeDirection = _detectShakeDirection(event);
+      if (shakeDirection != "None") {
+        setState(() {
+          _lastShakeDirection = shakeDirection;
+        });
+        _performAction(shakeDirection);
+      }
+    });
+  }
+
+  String _detectShakeDirection(AccelerometerEvent event) {
+    if (event.x.abs() > 1.5 && event.x.abs() > event.y.abs() && event.x.abs() > event.z.abs()) {
+      return event.x > 0 ? "Right" : "Left";
+    } else if (event.y.abs() > 1.5 && event.y.abs() > event.z.abs()) {
+      return event.y > 0 ? "Up" : "Down";
+    }
+    return "None";
+  }
+
+  void _performAction(String direction) {
+    // This is where the action corresponding to the shake direction should be performed.
+    // For example, you could control music playback by shaking the phone.
+    print('Performing action for shake direction: $direction');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Shake Detector'),
+      ),
+      body: Center(
+        child: Text('Last Shake Direction: $_lastShakeDirection'),
+      ),
+    );
+  }
+}
+
+```
+이 예제에서 _detectShakeDirection(event) 함수는 가속도계 이벤트를 분석하여 사용자가 스마트폰을 어느 방향으로 흔들었는지를 감지한다.
+
+ x, y, z 축 중 어느 축의 움직임이 가장 큰지를 확인하고 그 축의 방향에 따라 "Right", "Left", "Up", "Down" 중 하나를 반환한다.
+
+그리고 _performAction(direction) 함수는 감지된 방향에 따라 특정 기능을 실행한다. 
+이 함수는 간단하게 출력만 하지만 실제 앱에서는 이 부분을 적절하게 구현하여 원하는 기능을 수행하도록 만들어야 겠지?
+
+
+### 모션에 따라 그림그리기 앱
+
+움직임 패턴을 감지하여 그에 따라 다른 액션을 수행하는 앱을 만들 수 있다. 
+사용자가 원을 그리는 모션을 감지하여 그림을 그리는 앱이다.
+
+```
+import 'package:flutter/material.dart';
+import 'package:sensors/sensors.dart';
+
+class GestureDetectorApp extends StatefulWidget {
+  @override
+  _GestureDetectorAppState createState() => _GestureDetectorAppState();
+}
+
+class _GestureDetectorAppState extends State<GestureDetectorApp> {
+  List<Offset> _points = <Offset>[];
+
+  @override
+  void initState() {
+    super.initState();
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      if (_points.length > 2) {
+        Offset o1 = _points[_points.length - 3];
+        Offset o2 = _points[_points.length - 2];
+        Offset o3 = _points[_points.length - 1];
+
+        if (_isCircularMotion(o1, o2, o3)) {
+          print("Circular motion detected");
+          // Add your code here to perform an action when a circular motion is detected.
+        }
+      }
+    });
+  }
+
+  bool _isCircularMotion(Offset o1, Offset o2, Offset o3) {
+    // This is a simple, naive implementation of a circular motion detection.
+    // In a real application, a more robust algorithm may be needed.
+    double angle1 = (o2 - o1).direction;
+    double angle2 = (o3 - o2).direction;
+    return (angle1 - angle2).abs() < 0.01;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Gesture Detector'),
+      ),
+      body: Container(
+        child: GestureDetector(
+          onPanUpdate: (DragUpdateDetails details) {
+            setState(() {
+              RenderBox object = context.findRenderObject();
+              Offset _localPosition = object.globalToLocal(details.globalPosition);
+              _points = List.from(_points)..add(_localPosition);
+            });
+          },
+          onPanEnd: (DragEndDetails details) => _points.add(null),
+          child: CustomPaint(painter: Signature(points: _points), size: Size.infinite),
+        ),
+      ),
+    );
+  }
+}
+
+class Signature extends CustomPainter {
+  List<Offset> points;
+
+  Signature({this.points});
+
+  void paint(Canvas canvas, Size size) {
+    Paint paint = Paint()
+      ..color = Colors.black
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 5.0;
+    for (int i = 0; i < points.length - 1; i++) {
+      if (points[i] != null && points[i + 1] != null)
+        canvas.drawLine(points[i], points[i + 1], paint);
+    }
+  }
+
+  bool shouldRepaint(Signature oldDelegate) => oldDelegate.points != points;
+}
+
+```
+이 예제는 스마트폰의 움직임을 기반으로 원형 모션을 감지한다. 
+사용자가 스마트폰을 원형으로 움직이면 그 움직임이 원형 모션인지를 판단하고 원형 모션이 감지되면 해당하는 동작을 수행한다. 
+원형 모션 감지는 간단한 각도 기반의 알고리즘을 사용했고 실제 앱에서는 보다 복잡한 알고리즘을 사용하길 추천한다.
+
+사용자가 화면을 터치하여 그림을 그리는 기능도 있는데 사용자가 그린 선들은 화면에 그려질 것이다. 
+이 기능은 Signature 클래스와 onPanUpdate 이벤트 핸들러를 통해 구현했다. 
+사용자가 화면을 터치하면 그 위치가 _points 리스트에 추가되고 Signature 클래스는 이 점들을 이용하여 화면에 선을 그리게 된다.

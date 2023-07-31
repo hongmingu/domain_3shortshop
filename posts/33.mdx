@@ -1,0 +1,181 @@
+---
+title: Swift 음성 데이터 머신러닝 기초 2
+description: "Swift 로 음성 데이터 머신러닝 기본 프로그램 만들기 2 음성 메모 앱 제작"
+date: July 31 2023
+---
+지난 게시에 이어 이번엔 음성 기반 메모 앱을 만들어보자
+
+사용자가 메모를 읽거나 새 메모를 만들 때 음성을 사용할 수 있게 해서 인식된 텍스트는 메모로 저장되며 텍스트 검색을 통해 사용자가 필요한 정보를 쉽게 찾을 수 있게 하자.
+
+다음 예제는 사용자의 음성을 인식하여 텍스트로 변환하고 인식된 텍스트를 메모로 저장한다. 
+사용자는 텍스트를 검색하여 필요한 메모를 찾을 수 있습니다.
+
+### 음성 메모앱
+
+```
+import SwiftUI
+import Combine
+import Speech
+
+struct ContentView: View {
+    @State private var isRecording = false
+    @State private var memos: [Memo] = []
+    @State private var searchText: String = ""
+    
+    var body: some View {
+        VStack {
+            TextField("Search", text: $searchText)
+            
+            List(memos.filter { memo in
+                searchText.isEmpty || memo.text.contains(searchText)
+            }) { memo in
+                Text(memo.text)
+            }
+            
+            Button(action: {
+                self.isRecording.toggle()
+                if self.isRecording {
+                    startRecording()
+                } else {
+                    stopRecording()
+                }
+            }) {
+                Text("\(isRecording ? "Stop" : "Start") recording")
+            }
+        }
+    }
+    
+    private let speechRecognizer = SFSpeechRecognizer()
+    private let audioEngine = AVAudioEngine()
+    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var recognitionTask: SFSpeechRecognitionTask?
+    
+    private func startRecording() {
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        
+        guard let recognitionRequest = recognitionRequest else { return }
+        
+        let inputNode = audioEngine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+            recognitionRequest.append(buffer)
+        }
+        
+        audioEngine.prepare()
+        try? audioEngine.start()
+        
+        recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
+            if let result = result {
+                let memoText = result.bestTranscription.formattedString
+                DispatchQueue.main.async {
+                    self.memos.append(Memo(text: memoText))
+                }
+            }
+        }
+    }
+    
+    private func stopRecording() {
+        audioEngine.stop()
+        recognitionRequest?.endAudio()
+    }
+}
+
+struct Memo: Identifiable {
+    let id = UUID()
+    let text: String
+}
+
+```
+
+위 코드는 사용자의 음성을 인식하여 텍스트로 변환하고 인식된 텍스트를 메모로 저장하는 기능을 구현한 것이다. 
+사용자는 TextField를 통해 검색어를 입력하고 이 검색어를 포함하는 메모만 List에 표시된다.
+
+#### UI/UX개선 버전
+
+좀 투박하니 디자인을 손보자.
+메모를 보기 쉽게 보여주는 섹션과 메모를 삭제하는 기능 녹음 상태를 사용자에게 보여주는 프로그레스 바 등을 추가해보자
+```
+import SwiftUI
+import Combine
+import Speech
+
+struct ContentView: View {
+    @State private var isRecording = false
+    @State private var memos: [Memo] = []
+    @State private var searchText: String = ""
+    @State private var progress: Double = 0.0
+    
+    var body: some View {
+        VStack {
+            TextField("Search", text: $searchText)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .padding(.horizontal)
+            
+            List {
+                Section(header: Text("Memos")) {
+                    ForEach(memos.filter { memo in
+                        searchText.isEmpty || memo.text.contains(searchText)
+                    }) { memo in
+                        Text(memo.text)
+                    }
+                    .onDelete(perform: deleteMemo)
+                }
+            }
+            .listStyle(GroupedListStyle())
+            
+            ProgressBar(value: $progress)
+                .frame(height: 20)
+                .padding(.horizontal)
+            
+            Button(action: {
+                self.isRecording.toggle()
+                if self.isRecording {
+                    startRecording()
+                } else {
+                    stopRecording()
+                }
+            }) {
+                Text("\(isRecording ? "Stop" : "Start") recording")
+                    .foregroundColor(.white)
+                    .padding()
+                    .background(isRecording ? Color.red : Color.blue)
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+            }
+        }
+    }
+    
+    // ...
+    
+    private func deleteMemo(at offsets: IndexSet) {
+        memos.remove(atOffsets: offsets)
+    }
+}
+
+struct ProgressBar: View {
+    @Binding var value: Double
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .opacity(0.3)
+                    .foregroundColor(Color(UIColor.systemTeal))
+                
+                Rectangle()
+                    .frame(width: geometry.size.width * CGFloat(self.value))
+                    .foregroundColor(Color(UIColor.systemTeal))
+                    .animation(.linear)
+            }
+            .cornerRadius(10.0)
+        }
+    }
+}
+
+```
+
+텍스트필드에 배경색을 넣었고 그외 프로그레스 바 등을 추가했다. 

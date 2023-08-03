@@ -1,0 +1,187 @@
+---
+title: Kotlin에서 쓰레드 설명과 사용방법
+description: "Kotlin에서 쓰레드를 사용하는 방법에 대한 예제와 설명"
+date: August 3 2023
+---
+## 쓰레드란?
+쓰레드(thread)는 프로그램 내에서 실행되는 독립적인 실행의 묶음이다. 
+멀티쓰레딩을 통해 여러 작업을 동시에 수행할 수 있으며 이로 인해 리소스를 효율적으로 활용하고 응답성을 높일 수 있다.
+
+### 독립성
+각 쓰레드는 독립적으로 실행되며 자신만의 레지스터 스택 등을 가진다.
+### 동시성
+여러 쓰레드는 동시에 실행될 수 있으며 이를 통해 병렬 처리가 가능하다.
+### 공유 자원
+쓰레드는 프로세스 내에서 동일한 메모리 공간을 공유하므로 자원의 동기화와 함께 작업하는 것이 중요하다.
+### 생성과 관리
+쓰레드의 생성과 관리는 운영 체제에 따라 다르며 프로그래밍 언어와 라이브러리는 이를 추상화하여 제공한다.
+### 안드로이드의 쓰레드 사용
+안드로이드와 같은 UI 중심의 애플리케이션에서는 메인 쓰레드가 UI 작업을 처리하고 백그라운드 쓰레드가 시간이 오래 걸리는 작업을 처리하는 것이 일반적이다.
+
+모던 프로그래밍 언어와 라이브러리는 쓰레드를 더 쉽게 다룰 수 있는 고수준의 추상화를 제공하며 이를 활용하면 병렬 프로그래밍을 더 안전하고 효율적으로 할 수 있다.
+
+## 기본 쓰레드 사용
+기본 쓰레드는 가장 기본적인 병렬 작업 수행 방법이다. 쓰레드를 생성하면 JVM이 관리하는 독립적인 실행 단위가 된다.
+
+```
+fun main() {
+    val thread = Thread {
+        println("작업 처리중...")
+    }
+    thread.start()
+    thread.join() // 해당 쓰레드가 완료될 때까지 기다림
+    println("작업 완료!")
+}
+```
+## 코틀린 코루틴 사용
+
+코루틴은 코틀린에서 병렬 프로그래밍을 간소화하고 비동기 코드를 더 쉽게 작성할 수 있게 한다.
+코루틴은 경량 쓰레드로 동시성을 쉽게 관리할 수 있는 방법을 제공하다.
+
+### launch
+새로운 코루틴을 시작한다. 기본적으로 비동기적으로 작동하며 코루틴 스코프 내에서 실행된다.
+### runBlocking
+현재 쓰레드를 블로킹하며 내부 코루틴이 모두 완료될 때까지 기다린다.
+```
+import kotlinx.coroutines.*
+
+fun main() = runBlocking {
+    launch {
+        delay(1000L) // 1초 대기
+        println("작업 처리중...")
+    }
+    println("작업 완료!")
+}
+```
+## 실행자 서비스 사용
+실행자 서비스는 쓰레드 풀을 관리하고 작업을 큐에 넣어 쓰레드가 사용 가능해지면 자동으로 실행하게 해준다.
+Executors는 쓰레드 풀을 사용해 병렬 작업을 처리하게 도와준다.
+```
+import java.util.concurrent.Executors
+
+fun main() {
+    val executor = Executors.newSingleThreadExecutor()
+    executor.submit {
+        println("작업 처리중...")
+    }
+    executor.shutdown() // 모든 작업이 완료되면 실행자 서비스를 종료
+    println("작업 완료!")
+}
+```
+## 안드로이드에서 메인 쓰레드와 작업 쓰레드 분리
+안드로이드에서는 UI 업데이트를 메인 쓰레드에서만 수행해야 하므로 다른 쓰레드에서 작업을 수행한 후 메인 쓰레드로 결과를 전달해야 할 때가 있다.
+안드로이드에서 UI 작업은 메인 쓰레드에서만 수행해야 하므로 별도의 쓰레드에서 작업을 수행한 후 결과를 메인 쓰레드로 전달하는 방법도 있다.
+```
+import android.os.Handler
+import android.os.Looper
+
+fun main() {
+    val handler = Handler(Looper.getMainLooper())
+    Thread {
+        val result = "작업 처리중..."
+        // 메인 쓰레드로 결과 전달
+        handler.post {
+            println(result)
+        }
+    }.start()
+}
+```
+## 쓰레드와 동기화
+여러 쓰레드에서 동시에 동일한 자원에 접근하려 할 때 동기화 문제가 발생할 수 있다. 이를 방지하기 위해 synchronized 블록을 사용할 수 있다.
+```
+synchronized(lock) {
+    // 동기화가 필요한 코드
+}
+```
+쓰레드를 사용할 때는 경쟁 상태 교착 상태와 같은 복잡한 문제를 일으킬 수 있는 여러 위험이 있으므로 주의깊게 설계하고 테스트해야 한다. 가능하면 코틀린의 코루틴과 같은 고수준 추상화를 사용하는 것이 좋을 수 있다.
+쓰레드를 사용할 때에는 쓰레드 간의 동기화와 공유 자원에 대한 접근을 신중하게 관리해야 한다. 위의 예시 코드는 간단한 작업을 수행하기 위한 것이므로 더 복잡한 작업을 수행할 때는 적절한 동기화와 오류 처리가 필요할 수 있다.
+
+
+## 쓰레드를 활용한 이미지 다운로드 앱 
+
+이 앱은 사용자가 URL을 입력하면 해당 URL에서 이미지를 다운로드하고 화면에 표시하다. 이 작업을 별도의 쓰레드에서 수행하여 UI의 응답성을 유지한다.
+
+### 레이아웃 작성 activity_main.xml
+먼저 사용자가 URL을 입력하고 버튼을 클릭할 수 있는 UI를 만들어보자.
+```
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/editTextUrl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Image URL" />
+
+    <Button
+        android:id="@+id/buttonDownload"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Download" />
+
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+</LinearLayout>
+```
+### 액티비티 코드 작성 (MainActivity.kt)
+이제 MainActivity에서 다운로드 버튼이 클릭되면 새 쓰레드를 시작하여 이미지를 다운로드하고 화면에 표시하는 코드를 작성하겠다.
+```
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
+import java.net.URL
+
+class MainActivity : AppCompatActivity() {
+
+    private val handler = Handler(Looper.getMainLooper())
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        val editTextUrl = findViewById<EditText>(R.id.editTextUrl)
+        val buttonDownload = findViewById<Button>(R.id.buttonDownload)
+        val imageView = findViewById<ImageView>(R.id.imageView)
+
+        buttonDownload.setOnClickListener {
+            val imageUrl = editTextUrl.text.toString()
+            Thread {
+                val bitmap = downloadImage(imageUrl)
+                handler.post {
+                    imageView.setImageBitmap(bitmap)
+                }
+            }.start()
+        }
+    }
+
+    private fun downloadImage(url: String): Bitmap? {
+        return try {
+            val connection = URL(url).openConnection()
+            val stream = connection.getInputStream()
+            BitmapFactory.decodeStream(stream)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+}
+```
+이 코드는 이렇게 작동한다
+
+1. 사용자가 URL을 입력하고 "Download" 버튼을 클릭하면 새 쓰레드가 시작된다.
+2. 이 쓰레드는 주어진 URL에서 이미지를 다운로드하고 비트맵으로 변환한다.
+3. 다운로드가 완료되면 Handler를 사용하여 메인 쓰레드에서 ImageView에 비트맵을 설정한다.
+

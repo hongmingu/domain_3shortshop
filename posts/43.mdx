@@ -1,0 +1,205 @@
+---
+title: Kotlin 앱 액티비티 생애주기
+description: "Kotlin에서 생애주기에 대한 이해와 설명"
+date: August 3 2023
+---
+안드로이드 앱의 생애주기는 앱의 여러 구성 요소가 생성 실행 중지 및 파괴되는 과정을 나타낸다. 
+코틀린에서도 Java와 마찬가지로 이러한 생애주기를 이해해야 한다.
+
+## 액티비티 생애주기
+액티비티의 생애주기는 일련의 콜백 메서드를 통해 관리된다. 이 콜백들은 액티비티의 상태 변화 시 호출된다.
+
+### onCreate 
+액티비티가 생성될 때 호출된다. 여기서는 UI 초기화와 데이터 준비 작업을 수행한다.
+### onStart 
+액티비티가 사용자에게 보여지기 시작할 때 호출된다.
+### onResume 
+액티비티가 포그라운드로 왔을 때 호출되며 이때부터 사용자 입력을 받을 수 있다.
+### onPause 
+다른 액티비티로 이동하거나 액티비티가 부분적으로 가려질 때 호출된다. 일반적으로 가볍게 데이터 저장이나 리소스 해제와 같은 작업을 수행한다.
+### onStop 
+액티비티가 완전히 가려지거나 종료될 때 호출된다.
+### onDestroy 
+액티비티가 완전히 종료되기 전에 호출된다. 여기서는 생성 시 할당한 리소스를 해제하는 작업을 수행한다.
+### onRestart 
+onStop 이후에 액티비티가 다시 시작될 때 호출된다.
+
+### 액티비티 생애주기 관리
+아래의 예시에서는 각 생애주기 콜백 메서드가 호출될 때 로그를 출력하여 액티비티의 상태 변화를 관찰할 수 있다.
+```
+import android.os.Bundle
+import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
+
+class MyActivity  AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main) // UI 초기화
+        Log.d("Lifecycle" "onCreate called")
+        // 데이터 준비 작업 수행
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d("Lifecycle" "onStart called")
+        // 액티비티가 사용자에게 보여지기 시작
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("Lifecycle" "onResume called")
+        // 사용자 입력 처리 시작
+    }
+
+    override fun onPause() {
+        Log.d("Lifecycle" "onPause called")
+        // 데이터 저장이나 리소스 해제 같은 가벼운 작업 수행
+        super.onPause()
+    }
+
+    override fun onStop() {
+        Log.d("Lifecycle" "onStop called")
+        // 액티비티가 완전히 가려짐 또는 종료될 때 수행됨
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        Log.d("Lifecycle" "onDestroy called")
+        // 리소스 해제 작업 수행
+        super.onDestroy()
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        Log.d("Lifecycle" "onRestart called")
+        // 액티비티가 다시 시작될 때 수행됨
+    }
+}
+```
+이 코드에서는 각 생애주기 콜백 메서드가 호출될 때 로그 메시지를 출력한다. 실제 앱에서는 각 콜백 메서드에서 필요한 작업을 수행하게 된다.
+
+예를 들어 onCreate에서는 뷰를 초기화하고 데이터를 로드하며 onResume에서는 사용자 입력을 처리하기 시작한다. onPause와 onStop에서는 일시적으로 액티비티가 사용자에게 보이지 않게 되므로 중요한 데이터를 저장하거나 리소스를 해제할 수 있다.
+
+이러한 생애주기 콜백 메서드를 올바르게 구현하면 앱의 리소스 사용을 최적화하고 사용자 경험을 향상시킬 수 있으며 예기치 않은 오류나 충돌을 방지할 수 있다.
+
+
+## 프래그먼트 생애주기
+프래그먼트 또한 액티비티와 유사한 생애주기를 가지고 있다. 
+프래그먼트의 생애주기 메서드에는 onAttach onCreate onCreateView onStart onResume onPause onStop onDestroyView onDestroy onDetach 등이 있다.
+### 프래그먼트 생애주기 콜백
+### onAttach 
+프래그먼트가 액티비티에 연결될 때 호출된다.
+### 
+onCreate 프래그먼트가 생성될 때 호출된다.
+### 
+onCreateView 프래그먼트와 연결된 뷰 계층 구조가 생성될 때 호출된다.
+### 
+onViewCreated 뷰 계층 구조가 완성된 후 호출된다.
+### 
+onStart 프래그먼트가 사용자에게 보여지기 시작할 때 호출된다.
+### 
+onResume 프래그먼트가 사용자와 상호작용할 수 있는 상태가 될 때 호출된다.
+### 
+onPause 프래그먼트가 일시 중지될 때 호출된다.
+### 
+onStop 프래그먼트가 완전히 중지될 때 호출된다.
+### 
+onDestroyView 프래그먼트와 연결된 뷰 계층 구조가 파괴될 때 호출된다.
+### 
+onDestroy 프래그먼트가 파괴될 때 호출된다.
+### 
+onDetach 프래그먼트가 액티비티로부터 분리될 때 호출된다.
+```
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+
+class MyFragment  Fragment() {
+
+    override fun onAttach(context Context) {
+        super.onAttach(context)
+        // 프래그먼트가 액티비티에 연결됨
+    }
+
+    override fun onCreate(savedInstanceState Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 프래그먼트 초기화
+    }
+
+    override fun onCreateView(inflater LayoutInflater container ViewGroup? savedInstanceState Bundle?) View? {
+        // 뷰 생성
+        return inflater.inflate(R.layout.fragment_my container false)
+    }
+
+    override fun onViewCreated(view View savedInstanceState Bundle?) {
+        super.onViewCreated(view savedInstanceState)
+        // 뷰와 관련된 추가 설정
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // 프래그먼트 시작
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 사용자와 상호작용 시작
+    }
+
+    override fun onPause() {
+        // 일시 중지
+        super.onPause()
+    }
+
+    override fun onStop() {
+        // 완전 중지
+        super.onStop()
+    }
+
+    override fun onDestroyView() {
+        // 뷰 파괴
+        super.onDestroyView()
+    }
+
+    override fun onDestroy() {
+        // 프래그먼트 파괴
+        super.onDestroy()
+    }
+
+    override fun onDetach() {
+        // 액티비티로부터 분리
+        super.onDetach()
+    }
+}
+```
+
+## 생애주기 관리
+안드로이드 아키텍처 컴포넌트 중 Lifecycle 클래스를 사용하면 생애주기와 관련된 로직을 모듈화하고 구성 요소 간의 의존성을 줄일 수 있다. LifecycleObserver 인터페이스를 구현하면 특정 생애주기 이벤트에 대한 응답을 클래스 밖에서 정의할 수 있다.
+```
+class MyActivity  AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState Bundle?) {
+        super.onCreate(savedInstanceState)
+        // UI 초기화
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 사용자와 상호작용 시작
+    }
+
+    override fun onPause() {
+        // 사용자와의 상호작용 중지
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        // 리소스 해제
+        super.onDestroy()
+    }
+}
+```
+앱의 생애주기를 올바르게 관리하면 리소스를 효율적으로 사용하고 사용자 경험을 향상시킬 수 있으며 예기치 않은 오류나 충돌을 방지할 수 있다.
